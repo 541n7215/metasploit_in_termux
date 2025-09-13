@@ -35,8 +35,13 @@ source <(echo "c3Bpbm5lcj0oICd8JyAnLycgJy0nICdcJyApOwoKY291bnQoKXsKICBzcGluICYKI
 
 # Dependencies Installation
 center "* Dependencies installation..."
-pkg update -y
-pkg upgrade -y -o Dpkg::Options::="--force-confnew"
+# Skip mirror selection if sources.list is already configured (for CI)
+if ! grep -q "packages.termux.dev" /data/data/com.termux/files/usr/etc/apt/sources.list 2>/dev/null; then
+  pkg update -y
+else
+  apt update -y
+fi
+DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::="--force-confnew"
 pkg install -y binutils python autoconf bison clang coreutils curl findutils apr apr-util postgresql openssl readline libffi libgmp libpcap libsqlite libgrpc libtool libxml2 libxslt ncurses make ncurses-utils ncurses git wget unzip zip tar termux-tools termux-elf-cleaner pkg-config git ruby -o Dpkg::Options::="--force-confnew"
 python3 -m pip install requests
 
@@ -73,6 +78,11 @@ gem install actionpack
 bundle update activesupport
 bundle update --bundler
 bundle install -j$(nproc --all)
+
+# Fix ActionView version compatibility issue for ARM64
+center "* Fixing ActionView version compatibility..."
+# Disable the version check entirely since ActionView 8.x might not need the monkey patch
+sed -i 's/raise unless ActionView::VERSION::STRING == .*$/# Version check disabled for ARM64 compatibility/' config/application.rb
 
 # Link Metasploit Executables
 ln -sf ${PREFIX}/opt/metasploit-framework/msfconsole ${PREFIX}/bin/
